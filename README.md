@@ -7,7 +7,9 @@ Scripts are expecting user supplied inputs:
 
 -Hourly observations of cell size distributions (counts of how many cells fall into each size bin for each hour)
 
--Radiation data that corresponds to the time frame for population observations
+-Radiation data that corresponds to the time frame for population observations 
+
+
  
 Model and fitting:
 
@@ -17,7 +19,8 @@ negloglike_calc.m: calculates the negative log likelihood of a set of parameters
 
 loglike_opt.m: sample script that sets up an optimization using MATLAB's fmincon to find the set of parameters that maximize the likelihood function given a day of observations. 
 
-sample_dat.mat: contains simulated sample data for a Synechococccus population
+growth_rate.m: calculates growth rate (division rate) from specified parameters and light data
+
 
 Prerequisites:
 MATLAB
