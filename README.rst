@@ -35,6 +35,8 @@ Prerequisites
 ::
 
     MATLAB
+    MATLAB Optimization Toolbox
+    MATLAB Parallel Computing Toolbox
 
 Notes on optimization: We use a strategy of many mulitple start points to avoid finding only local minima. With 13 parameters in the two-component model version, we find sometimes (depending on the data) that there can be several different combinations of parameters that result in very close likelihood values. 
 
