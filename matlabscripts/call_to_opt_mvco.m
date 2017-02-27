@@ -4,8 +4,8 @@
 %script runs batches of random startpoints with multistart as
 %this seems to be faster than running fmincon one solver run at time to
 
-clear all
-close all
+% clear all
+% close all
 
 %some front matter:
 hr1=7; hr2=25; %time window for the model
@@ -37,7 +37,7 @@ tolvec=[0.01 0.01 100 0.005 0.01 0.01 100 0.005 0.01 0.5 0.5 0.5 0.5 10];
 %        yearlabel='Jan';
 %end
 
-disp(num2str(year))
+disp(num2str(year2do))
 %eval(['pathname=''\\sosiknas1\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\input_beadmean_July2016\'';']) %Change path to sosiknas here!
 %eval(['savepath=''\\sosiknas1\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\output_July2016\'';']) %Change path to sosiknas here!
 
