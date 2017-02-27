@@ -267,7 +267,7 @@ for filenum=1:length(filelist)
     allmodelruns{filenum,1}=modelfits;
     allmodelruns{filenum,2}=allstarts;
 
-    eval(['save ' savepath 'mvco_14par_dmn_' num2str(year) ' modelresults allmodelruns'])
+    eval(['save ' savepath 'mvco_14par_dmn_' num2str(year2do) ' modelresults allmodelruns'])
 
 end
 
