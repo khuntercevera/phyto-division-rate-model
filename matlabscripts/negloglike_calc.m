@@ -1,7 +1,7 @@
-function [prob]=negloglike_calc(Einterp,N_dist,theta,volbins,hr1,hr2)
+function [prob]=loglike_DMN_14params_phours_plateau(Einterp,N_dist,theta,volbins,hr1,hr2)
 
 %Calculates negative log likelihood of a set of parameters given a day of
-%observations (counts of cells in each size class for each hour). Model version is a two subpopulation model structure 
+%observations (counts of cells in each size class for each hour). Model version is a two subpopulation model structure
 % as described in Hunter-Cevera et al. 2014. Subpopulations are
 % distinguished based on starting mean volume. The subpopulation with the
 % smaller volume is referred to subpopn 1
@@ -13,7 +13,7 @@ function [prob]=negloglike_calc(Einterp,N_dist,theta,volbins,hr1,hr2)
 %volbins - cell size classes (micrometers cubed)
 %hr1 and hr2 refer to the starting and ending hour of the portion of day
 %you want to fit. In the paper, we've used hr1=7 hours after dawn and
-%hr2=25 (run till end of day). 
+%hr2=25 (run till end of day).
 %theta - set of parameters, described below:
 
 gmax1=theta(1); %max fraction of cells growing into next size class, subpopn 1
@@ -24,82 +24,85 @@ gmax2=theta(5); %max fraction of cells growing into next size class, subpopn 2
 b2=theta(6); %shape parameter division function, subpopn 2
 E_star2=theta(7); %shape parameter of growth function (point where function switches from linear to constant), subpopn 2
 dmax2=theta(8); %max fraction of cells able to divide in a given size class, subpopn 2
-f=theta(9); %proportion parameter, specifies starting fraction of subpopn 1 
+f=theta(9); %proportion parameter, specifies starting fraction of subpopn 1
 m1=theta(10); %mean volume for starting cell size distribution, subpopn 1
 m2=theta(11); %mean volume for starting cell size distribution, subpopn 2
-sigma=theta(12); %variance parameter for starting cell size distributions for both popn 1 and 2
-s=theta(13); %overdispersion parameter for the Dirichlet-multinomial distribution
+sigma1=theta(12); %variance parameter for starting cell size distributions for popn 1
+sigma2=theta(13); %variance parameter for starting cell size distributions for popn 2
+s=theta(14); %overdispersion parameter for the Dirichlet-multinomial distribution
 
+
+gmax1=theta(1);
+b1=theta(2);
+E_star1=theta(3);
+dmax1=theta(4);
+gmax2=theta(5);
+b2=theta(6);
+E_star2=theta(7);
+dmax2=theta(8);
+f=theta(9); %fraction of starting distribution
+m1=theta(10);
+m2=theta(11);
+sigma1=theta(12);
+sigma2=theta(13);
+s=100*theta(14); %scaled to help solver shrink distance between small numbers and very large numbers encountered in theta vector
+
+q=hr2-hr1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% create transition matrices for all hours (hr2-hr1 or 24hrs):
+%% create all B matrices for the hours:
 
-q=hr2-hr1; 
-B_day1=zeros(57,57,q);   
+B_day1=zeros(57,57,q);
 B_day2=zeros(57,57,q);
 
 for t=(hr1-1):(hr2-2)
-     B1=matrix_const(t,Einterp,volbins,b1,dmax1,E_star1,gmax1); %matrix construction function
+     B1=matrix_const_plateau(t,Einterp,volbins,b1,dmax1,E_star1,gmax1);
      B_day1(:,:,t-hr1+2)=B1;
-     B2=matrix_const(t,Einterp,volbins,b2,dmax2,E_star2,gmax2);
+     B2=matrix_const_plateau(t,Einterp,volbins,b2,dmax2,E_star2,gmax2);
      B_day2(:,:,t-hr1+2)=B2;
 end
 
 
-%% Project forward each subcomponent: %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Project forward each subcomponent: %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%setup starting size distributions: first hour size distribution is a mixture of two log normal distributions
-%Note construction using normal distribution as size classes are logarithmically spaced
-y1=normpdf(1:57,m1,sigma); 
-y2=normpdf(1:57,m2,sigma);
+y1=normpdf(1:57,m1,sigma1);
+y2=normpdf(1:57,m2,sigma2);
 
-%proportion size distributions accordingly with starting cell number from observations and proportion parameter
-Nt1=f*sum(N_dist(:,hr1))*(y1./sum(y1)); 
+Nt1=f*sum(N_dist(:,hr1))*(y1./sum(y1));
 Nt2=(1-f)*sum(N_dist(:,hr1))*(y2./sum(y2));
 
-%Nt1 and Nt2 contain count data, whereas the variable simdist (below) are
-%the cell size distributions used in the likelihood calculation. We project
-%using numbers and then calculate the distribution.
-
-%rearrange for matrix multiplication
-Nt1=Nt1'; %counts in each size bin for starting hour
+Nt1=Nt1';
 Nt2=Nt2';
-simdist(:,1)=(Nt1+Nt2)./sum(Nt1+Nt2); %first hour cell size distribution, 
 
-%create model day by projecting forward the counts for each hour
+simdist(:,1)=(Nt1+Nt2)./sum(Nt1+Nt2);  %Only if starting hour has no zeros!
+
 for t=1:q
-    
-    Nt1(:,t+1)=B_day1(:,:,t)*Nt1(:,t);           
+
+    Nt1(:,t+1)=B_day1(:,:,t)*Nt1(:,t);           %project forward with the numbers
     Nt2(:,t+1)=B_day2(:,:,t)*Nt2(:,t);
-    
+
     simdist(:,t+1)=(Nt1(:,t+1)+Nt2(:,t+1))./sum(Nt1(:,t+1)+Nt2(:,t+1)); %normalize to get distribution for likelihood
-     
-    %just in case something is awry:
-%     if any(isnan(simdist(:,t+1))) 
-%         disp(['simdist contains a nan... theta:' num2str(theta)])
-% %         keyboard 
-%     end
+
+    if any(isnan(simdist(:,t+1))) %just in case
+        disp(['DMN 13param...simdist has a nan? theta:' num2str(theta)])
+%         keyboard
+    end
 
 end
 
-%% Calculate log likelihood using the Dirichlet Multinomial distribution: %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Now calculate the log likelihood using the Dirichlet Multinomial distribution: %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%We directly calculate the log likelihood value, which allows us to avoid mulitpying small likelihood values:
-
-%specify the expected distribution from simdist:
-alpha=s*simdist; %s is overdispersion parameter
-TotN=sum(N_dist); %Total cell counts for each hour
+%specifiy the expected distribution:
+alpha=s*simdist;
+TotN=sum(N_dist);
 
 logL=zeros(q+1,1);
 for t=1:q+1
-    C = gammaln(s) - gammaln(TotN(:,t+hr1-1)+s); %constant out in front
-    logL(t)=C+sum(gammaln(N_dist(:,t+hr1-1)+alpha(:,t)) - gammaln(alpha(:,t)));
+C = gammaln(s) - gammaln(TotN(:,t+hr1-1)+s); %constant out in front
+logL(t)=C+sum(gammaln(N_dist(:,t+hr1-1)+alpha(:,t)) - gammaln(alpha(:,t)));
 end
 
-%Note that there is another constant that is technically part of the likelihood function 
-%that we don't incorporate into this calcution (N(t)!/n1(t)!n2(t)!...n57(t)!, where N(t) is 
-%total number of cells obs at time t and n(t) is number of cells in each size class for time t) 
-%as this value remains the same over the course of the day. Since it does does not depend on theta, 
-%we can exclude it and it will not impact on the search for the best fit parameters
+% if any(isnan(logL))
+%     keyboard
+% end
 
-prob=-sum(logL); %return negative logL for the optimization routine fmincon (finds minima, not maxima)
-
+prob=-sum(logL); %negative for the minimiation routine fmincon
