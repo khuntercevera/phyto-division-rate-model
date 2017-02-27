@@ -19,14 +19,14 @@ q=hr2-hr1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
  %create all B matrices for the hours:
- 
-B_day1=zeros(57,57,q);   
+
+B_day1=zeros(57,57,q);
 B_day2=zeros(57,57,q);
 
 for t=(hr1-1):(hr2-2)
-     B1=matrix_const_plateau(t,Einterp,volbins,b1,dmax1,E_star1,gmax1);
+     B1=matrix_const(t,Einterp,volbins,b1,dmax1,E_star1,gmax1);
      B_day1(:,:,t-hr1+2)=B1;
-     B2=matrix_const_plateau(t,Einterp,volbins,b2,dmax2,E_star2,gmax2);
+     B2=matrix_const(t,Einterp,volbins,b2,dmax2,E_star2,gmax2);
      B_day2(:,:,t-hr1+2)=B2;
 end
 
@@ -43,15 +43,15 @@ Nt2=Nt2';
 simdist(:,1)=(Nt1+Nt2)./sum(Nt1+Nt2);  %Only if starting hour has no zeros!
 
 for t=1:q
-    
+
     Nt1(:,t+1)=B_day1(:,:,t)*Nt1(:,t);           %project forward with the numbers
     Nt2(:,t+1)=B_day2(:,:,t)*Nt2(:,t);
-    
+
     simdist(:,t+1)=(Nt1(:,t+1)+Nt2(:,t+1))./sum(Nt1(:,t+1)+Nt2(:,t+1)); %normalize to get distribution for likelihood
-     
+
     if any(isnan(simdist(:,t+1))) %just in case
         disp('hmmm...simdist has a nan?')
-         keyboard 
+         keyboard
     end
 
 end

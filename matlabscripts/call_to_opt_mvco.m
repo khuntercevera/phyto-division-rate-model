@@ -109,7 +109,7 @@ for filenum=1:length(filelist)
     %random start points:
     tpoints = CustomStartPointSet([0.2*rand(40,1) 6*rand(40,1) max(Einterp)*rand(40,1) 0.1*rand(40,1) 0.2*rand(40,1) 6*rand(40,1) max(Einterp)*rand(40,1) 0.1*rand(40,1) 0.5*rand(40,1) 30*rand(40,1)+20 30*rand(40,1)+20 10*rand(40,1)+2 10*rand(40,1)+2 1e4*rand(40,1)]);
 
-    problem = createOptimProblem('fmincon','x0',x0,'objective',@(theta) loglike_DMN_14params_phours_plateau(Einterp,N_dist,theta,volbins,hr1,hr2),'Aineq',A,'bineq',B,'options',opts);
+    problem = createOptimProblem('fmincon','x0',x0,'objective',@(theta) negloglike_calc(Einterp,N_dist,theta,volbins,hr1,hr2),'Aineq',A,'bineq',B,'options',opts);
     [xmin,fmin,exitflag,~,soln] = run(ms,problem,tpoints);
 
     %open up the soln structure:
@@ -126,7 +126,7 @@ for filenum=1:length(filelist)
             start_points(c,:)=g;
             temp(c,1:14)=soln(j).X;
             temp(c,15)=soln(j).Fval;
-            temp(c,16)=growth_rate_phours_13params_plateau(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2);
+            temp(c,16)=growth_rate(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2);
             temp(c,17)=soln(j).Exitflag;
             c=c+1;
         else
@@ -134,7 +134,7 @@ for filenum=1:length(filelist)
             start_points(c:c+num-1,:)=squeeze(reshape(g',1,14,num))';
             temp(c:c+num-1,1:14)=repmat(soln(j).X,num,1);
             temp(c:c+num-1,15)=repmat(soln(j).Fval,num,1);
-            temp(c:c+num-1,16)=repmat(growth_rate_phours_13params_plateau(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2),num,1);
+            temp(c:c+num-1,16)=repmat(growth_rate(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2),num,1);
             temp(c:c+num-1,17)=repmat(soln(j).Exitflag,num,1);
             c=c+num;
         end
@@ -186,7 +186,7 @@ for filenum=1:length(filelist)
 
         tpoints = CustomStartPointSet([0.2*rand(40,1) 6*rand(40,1) max(Einterp)*rand(40,1) 0.1*rand(40,1) 0.2*rand(40,1) 6*rand(40,1) max(Einterp)*rand(40,1) 0.1*rand(40,1) 0.5*rand(40,1) 30*rand(40,1)+20 30*rand(40,1)+20 10*rand(40,1)+2 10*rand(40,1)+2 1e4*rand(40,1)]);
 
-        problem = createOptimProblem('fmincon','x0',x0,'objective',@(theta) loglike_DMN_14params_phours_plateau(Einterp,N_dist,theta,volbins,hr1,hr2),'Aineq',A,'bineq',B,'options',opts);
+        problem = createOptimProblem('fmincon','x0',x0,'objective',@(theta) negloglike_calc(Einterp,N_dist,theta,volbins,hr1,hr2),'Aineq',A,'bineq',B,'options',opts);
         [xmin,fmin,exitflag,~,soln] = run(ms,problem,tpoints);
 
         %open up the soln sturcutre:
@@ -203,7 +203,7 @@ for filenum=1:length(filelist)
                 start_points(c,:)=g;
                 temp(c,1:14)=soln(j).X;
                 temp(c,15)=soln(j).Fval;
-                temp(c,16)=growth_rate_phours_13params_plateau(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2);
+                temp(c,16)=growth_rate(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2);
                 temp(c,17)=soln(j).Exitflag;
                 c=c+1;
             else
@@ -211,7 +211,7 @@ for filenum=1:length(filelist)
                 start_points(c:c+num-1,:)=squeeze(reshape(g',1,14,num))';
                 temp(c:c+num-1,1:14)=repmat(soln(j).X,num,1);
                 temp(c:c+num-1,15)=repmat(soln(j).Fval,num,1);
-                temp(c:c+num-1,16)=repmat(growth_rate_phours_13params_plateau(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2),num,1);
+                temp(c:c+num-1,16)=repmat(growth_rate(Einterp,volbins,N_dist,temp(c,1:13),hr1,hr2),num,1);
                 temp(c:c+num-1,17)=repmat(soln(j).Exitflag,num,1);
                 c=c+num;
             end
@@ -261,7 +261,7 @@ for filenum=1:length(filelist)
     fmin=modelfits(jj(1),15);
     exitflag=modelfits(jj(1),17);
 
-    [mu mu1 mu2 p1 p2]=growth_rate_phours_13params_plateau(Einterp,volbins,N_dist,xmin(1:13),hr1,hr2);
+    [mu mu1 mu2 p1 p2]=growth_rate(Einterp,volbins,N_dist,xmin(1:13),hr1,hr2);
 
     modelresults(filenum,:)=[day xmin fmin mu mu1 mu2 p1 p2 exitflag length(modelfits)];
     allmodelruns{filenum,1}=modelfits;
