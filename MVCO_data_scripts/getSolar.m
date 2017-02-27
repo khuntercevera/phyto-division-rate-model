@@ -1,9 +1,10 @@
-if year2do <= 2015
-    eval(['X=load(''' envpath num2str(year2do) '_MetDat_s.C99'',''ascii'');'])
-else
-    eval(['X=load(''' envpath num2str(year2do) '_MetDat_s.C99B.txt'',''ascii'');'])
-end
-
+% if year2do <= 2015
+%     eval(['X=load(''' envpath num2str(year2do) '_MetDat_s.C99'',''ascii'');'])
+% else
+%     eval(['X=load(''' envpath num2str(year2do) '_MetDat_s.C99B.txt'',''ascii'');'])
+% end
+eval(['X=load(''' envpath num2str(year2do) '_MetDat_s.C99'',''ascii'');'])
+ 
 yd_met=X(:,2);
 Hour = X(:,5);
 Solar=X(:,14);  %Solar_campmt_median
