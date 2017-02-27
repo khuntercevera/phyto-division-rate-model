@@ -19,6 +19,8 @@ if plotflag ==1
     figure(6)
     subplot(2,1,1,'replace')
     plot(beadresults(:,1),beadresults(:,13),'.-')
+    ylabel('Bead SSC')
+    disp('Any suspicous bead values?')
     keyboard
 end
 
@@ -39,6 +41,9 @@ switch year2do
     case 2013
         ind=find(beadresults(:,13) > 10e4); %outlier
         beadresults(ind,13)=NaN; 
+    case 2016
+         ind=find(beadresults(:,13) > 8e5); %outlier
+         beadresults(ind,13)=NaN; 
 end
 
 sm_bead_avgSSC=mvco_running_average(beadresults(:,1),beadresults(:,13),3,2); %running average smoothing function that takes into account breaks in FCB deployments
@@ -50,6 +55,8 @@ if plotflag ==1
     hold on
     plot(beadresults(:,1),beadresults(:,13),'.-')
     plot(beadresults(:,1),sm_bead_avgSSC,'.--')
+    ylabel('Bead SSC')
+    legend('Bead SSC','Smoothed SSC, 3-points')
     pause
 end
 
