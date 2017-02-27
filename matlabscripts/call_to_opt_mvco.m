@@ -20,26 +20,26 @@ tolvec=[0.01 0.01 100 0.005 0.01 0.01 100 0.005 0.01 0.5 0.5 0.5 0.5 10];
 
 % Specify year:
 % for
-year=2011;
-
-switch year
-    case 2003
-        yearlabel='May';
-    case 2004
-        yearlabel='Apr';
-    case 2005
-        yearlabel='Apr';
-    case 2006
-        yearlabel='May';
-    case 2007
-        yearlabel='Mar';
-    otherwise
-        yearlabel='Jan';
-end
+%year=2011;
+%
+%switch year
+%    case 2003
+%        yearlabel='May';
+%    case 2004
+%        yearlabel='Apr';
+%    case 2005
+%        yearlabel='Apr';
+%    case 2006
+%        yearlabel='May';
+%    case 2007
+%        yearlabel='Mar';
+%    otherwise
+%        yearlabel='Jan';
+%end
 
 disp(num2str(year))
-eval(['pathname=''\\sosiknas1\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\input_beadmean_July2016\'';']) %Change path to sosiknas here!
-eval(['savepath=''\\sosiknas1\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\output_July2016\'';']) %Change path to sosiknas here!
+%eval(['pathname=''\\sosiknas1\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\input_beadmean_July2016\'';']) %Change path to sosiknas here!
+%eval(['savepath=''\\sosiknas1\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\output_July2016\'';']) %Change path to sosiknas here!
 
 % eval(['pathname=''\\sosiknas1.whoi.edu\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\input_beadmean_July2016\'';']) %Change path to sosiknas here!
 % eval(['savepath=''\\sosiknas1.whoi.edu\Lab_data\MVCO\FCB\MVCO_' yearlabel num2str(year) '\model\output_July2016\'';']) %Change path to sosiknas here!
@@ -76,6 +76,7 @@ for filenum=1:length(filelist)
     disp(['optimizing day: ' num2str(day) ' file#: ' num2str(filenum)])
     eval(['load ' pathname filename])
 
+    %special fix for shorter days, but still have enough hours to fit the model
     if size(N_dist,2) < 25
         m=size(N_dist,2);
         N_dist=[nan(57,25-m) N_dist];
@@ -103,8 +104,9 @@ for filenum=1:length(filelist)
     B(1:2:27)=lb;
     B(2:2:28)=ub;
 
-    x0=[0.2*rand 6*rand max(Einterp)*rand 0.1*rand 0.2*rand 6*rand max(Einterp)*rand 0.1*rand 0.5*rand 30*rand+20 30*rand+20 10*rand+2 10*rand+2 1e4*rand]; %random start point
-
+    %starting conditions:
+    x0=[0.2*rand 6*rand max(Einterp)*rand 0.1*rand 0.2*rand 6*rand max(Einterp)*rand 0.1*rand 0.5*rand 30*rand+20 30*rand+20 10*rand+2 10*rand+2 1e4*rand];
+    %random start points:
     tpoints = CustomStartPointSet([0.2*rand(40,1) 6*rand(40,1) max(Einterp)*rand(40,1) 0.1*rand(40,1) 0.2*rand(40,1) 6*rand(40,1) max(Einterp)*rand(40,1) 0.1*rand(40,1) 0.5*rand(40,1) 30*rand(40,1)+20 30*rand(40,1)+20 10*rand(40,1)+2 10*rand(40,1)+2 1e4*rand(40,1)]);
 
     problem = createOptimProblem('fmincon','x0',x0,'objective',@(theta) loglike_DMN_14params_phours_plateau(Einterp,N_dist,theta,volbins,hr1,hr2),'Aineq',A,'bineq',B,'options',opts);
@@ -265,7 +267,7 @@ for filenum=1:length(filelist)
     allmodelruns{filenum,1}=modelfits;
     allmodelruns{filenum,2}=allstarts;
 
-    eval(['save ' savepath 'mvco_14par_dmn_' num2str(year) 'E modelresults allmodelruns'])
+    eval(['save ' savepath 'mvco_14par_dmn_' num2str(year) ' modelresults allmodelruns'])
 
 end
 
