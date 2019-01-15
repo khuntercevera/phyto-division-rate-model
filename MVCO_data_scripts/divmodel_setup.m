@@ -15,14 +15,15 @@ for year2do = 2016;
         rootpath='/Volumes/Lab_data/MVCO/FCB/';
     end
 
-    do_Solar = 0;
-    %    do_moreSolar = 0; %not ready yet, but one day soon - try to recoop days lost by using Nantucket buoy data :)
+    do_Solar = 1;
+    buoy_flag=1;
     do_setupdays = 0;
     do_setupdays_movie = 0;
-    do_model = 1;
+    do_model = 0;
     do_modelfit_movie = 0;
     redo_model=0;
-
+    
+    
     switch year2do
         case 2003
             datapath = fullfile(rootpath,'MVCO_May2003/');
@@ -45,11 +46,6 @@ for year2do = 2016;
         getSolar
         pause
     end
-
-    %     if do_moreSolar %future goal - pad Solar data with buoy solar...
-    %         solarsavepath=[datapath '/model/'];
-    %         getmoreSolar
-    %     end
 
     if do_setupdays
         mergedpath0 = fullfile([datapath,'data/processed/grouped/merged/']); %the '0' designation is important - mergedpath is a save variable name in the files that will be downloaded....
