@@ -42,106 +42,86 @@ Hour = Hour(ind);
 date_met = yd_met + datenum(['1-0-' num2str(year2do)]);  %should be UTC
 dawnlevel = 5;   %threshold for light
 
-    
-%% find dawn and dusk of each day:
-unqday = unique(floor(date_met - 5/24)); %approx number of local days
-unqday = unqday(~isnan(unqday));
-yrdy=find_yearday(unqday);
-dawnhr=nan(366,1);
-duskhr=nan(366,1);
-
-for count = 1:length(unqday),
-    ind = find(floor(date_met - 5/24) == unqday(count));
-    ind2 = find(Solar(ind) > dawnlevel);
-    if ~isempty(ind2),
-        dawnhr(yrdy(count)) = Hour(ind(ind2(1))) - 1;  %1 h before dawnlevel?
-        duskhr(yrdy(count)) = Hour(ind(ind2(end))) + 1;  %next hour after end of light
-        if dawnhr(yrdy(count)) == -1, keyboard, end;
-    else
-        dawnhr(yrdy(count)) = NaN;
-        duskhr(yrdy(count)) = NaN;
-    end;
-end;
-
-% Need a good estimate of where dawn/dusk is to detect gaps:
+Solar0=Solar; %copies....
+date_met0=date_met;
+%% Load in good estimates of where dawn/dusk is to detect gaps:
 
 %constructed from raw_data with get_average_dawn.m, 
 %load expected UTC values of dawn and dusk over 13 years :)
 if ~isempty(strfind(computer,'WIN'))
     load \\sosiknas1\lab_data\mvco\FCB\Syn_divrate_model\median_dawn.mat
-else
-    load /Users/kristenhunter-cevera/phyto-division-rate-model/setup_and_postprocessing_src/median_dawn.mat  
+else %temporary locations:
+    load /Users/kristenhunter-cevera/phyto-division-rate-model/setup_and_postprocessing/median_dawn.mat  
+end 
+
+
+%% find dawn and dusk of each day and detect gaps:
+
+days=(datenum(['1-1-' num2str(year2do)]):datenum(['12-31-' num2str(year2do)]))';
+duskhr=nan(length(days),1);
+dawnhr=nan(length(days),1);
+lighttime_gaps=nan(length(days),1);
+
+for j=1:length(days)
+    
+    ind = find(floor(date_met - 5/24) == days(j));
+    if ~isempty(ind)
+        
+        ind2=find(date_met(ind) >= days(j)+(dawn_median(j)-1)/24 & date_met(ind) <= days(j)+(dusk_median(j)+1)/24); %examine light only within the expected dawn-dusk range (sometimes renegard nightime noise!)
+        ind3 = find(Solar(ind(ind2)) > dawnlevel); %is there light data?
+        
+        if ~isempty(ind3) %good, we have light data!
+            
+            tempdawn=Hour(ind(ind2(ind3(1)))) - 1; %1 h before dawnlevel?
+            tempdusk=Hour(ind(ind2(ind3(end)))) + 1; %next hour after end of light
+            if tempdusk < 20, tempdusk=tempdusk+24; end %i.e. for hours 1,2 - this is the next day...
+            
+            %check for gaps around dawn and dusk:           
+            if abs(dawn_median(j)-tempdawn) <= 1
+                dawnhr(j)=tempdawn; %good, accept this dawn!            
+            elseif abs(dawn_median(j)-tempdawn) <= 3 %close...small gap, pad with a datapoint for later interpolation!
+                 date_met = [date_met; days(j)+(dawn_median(j)-.001)/24];
+                 Solar = [Solar; 0];
+                 dawnhr(j)=dawn_median(j);
+            else
+                lighttime_gaps(j)=0; %gap around dawn
+            end
+                        
+            if abs(dusk_median(j)-tempdusk) <= 1
+                duskhr(j)=tempdusk; %good, accept this dusk!            
+            elseif abs(dusk_median(j)-tempdusk) <= 3 %close...small gap, pad with a datapoint for later interpolation!
+                 date_met = [date_met; days(j)+(dusk_median(j)+.001)/24];
+                 Solar = [Solar; 0];
+                 duskhr(j)=dusk_median(j);
+            else
+                lighttime_gaps(j)=2; %gap around dusk
+            end
+            
+            %now check for any gaps during light time hours:
+            if ~isnan(dawnhr(j)) && ~isnan(duskhr(j))
+                if any(find(diff(date_met(ind(ind2))) >= 2/24));
+                    lighttime_gaps(j) = 1;
+                end;
+            end
+            
+            % a quick double check on days 
+            %QC plotting if needed:
+%             if ~isnan(lighttime_gaps(j))
+%                 hold on
+%                 plot(date_met0(ind),Solar0(ind),'ko')
+%                 plot(date_met0(ind(ind2)),Solar0(ind(ind2)),'r*')              
+%                 keyboard
+%             end
+            
+            
+        end
+    end
 end
 
-%replace dawn and dusk hours if deviate from median:
-ind = find(abs(dawnhr-dawn_median) > 1);
-dawnhr(ind) = dawn_median(ind);
-dawnhr=dawnhr(yrdy);
-ind = find(abs(duskhr-dusk_median) > 1);
-duskhr(ind) = dusk_median(ind);
-duskhr=duskhr(yrdy);
-
-temp = datevec(date_met(~isnan(date_met)));
-lhour = NaN*ones(length(date_met),1);
-lhour(~isnan(date_met)) = temp(:,4); %UTC hour
-clear temp
-
-%% Find gaps or not good days and flag accordingly:
-
-for count = 1:length(unqday),
-    %
-    disp(datestr(unqday(count)))
-    ind = find(floor(date_met - 5/24) == unqday(count));  %rough estimate for local day
-    
-    if ~isnan(dawnhr(count)),
-        %
-        ind2 = find(lhour(ind) >= dawnhr(count) & lhour(ind) <= duskhr(count)); %grab indexes that correspond to light hours!
-        if ~isempty(ind2)
-            %
-            if count > 1 & count < length(unqday), % include pts just before and just after light to check for start and end gaps
-                ind3 = [ind(ind2(1))-1; ind(ind2); ind(ind2(end))+1];  % include pts just before and just after light
-            elseif count == 1 %first day
-                ind3 = [ind(ind2); ind(ind2(end))+1];
-            else %last day
-                ind3 = [ind(ind2(1))-1; ind(ind2)];
-            end;
-            
-            %ind3 is current day just before and after dawn light hours :)
-            gaps = find(diff(yd_met(ind3)) >= 2/24);  %find gaps > 2 h during light
-            
-            if ~isempty(gaps),
-                %
-                if gaps(end) == length(ind3) - 1,
-                    if lhour(ind(end)) < duskhr(count) - 3, %big gap around dusk
-                        dawnhr(count) = NaN;
-                    else
-                        date_met = [date_met(1:ind3(end-1)); unqday(count) + (duskhr(count)+.001)/24; date_met(ind3(end-1)+1:end)];
-                        Solar = [Solar(1:ind3(end-1)); 0; Solar(ind3(end-1)+1:end)];
-                        lhour  = [lhour(1:ind3(end-1)); duskhr(count)+.001; lhour(ind3(end-1)+1:end)];
-                        yd_met  = [yd_met(1:ind3(end-1)); floor(yd_met(ind3(2))) + (duskhr(count)+4.001)/24; yd_met(ind3(end-1)+1:end)];
-                    end;
-                end;
-                %
-                if gaps(1) == 1 && ~isnan(dawnhr(count)) %second logic is for if previous dusk gap was detected and now this is flagged
-                    if lhour(ind(1)) >= dawnhr(count) + 3,  %big gap before dawn
-                        dawnhr(count) = NaN;
-                    else
-                        date_met = [date_met(1:ind3(1)); unqday(count) + (dawnhr(count)+.001)/24; date_met(ind3(2):end)];
-                        Solar = [Solar(1:ind3(1)); 0; Solar(ind3(2):end)];
-                        lhour  = [lhour(1:ind3(1)); dawnhr(count)+.001; lhour(ind3(2):end)];
-                        yd_met  = [yd_met(1:ind3(1)); floor(yd_met(ind3(2))) + (dawnhr(count)+4.001)/24; yd_met(ind3(2):end)];
-                    end;
-                end;
-                
-                %With edits..now refind any gaps
-                gaps = find(diff(yd_met(ind(ind2))) >= 2/24);
-                if ~isempty(gaps)
-                    dawnhr(count) = NaN;
-                end;
-            end;
-        end;  %indexes for light hours in day
-    end;   %indexes for local day
-end;  %count
+%in case added any points:
+[~,ii]=sort(date_met);
+date_met=date_met(ii);
+Solar=Solar(ii);
 
 
 %% %%%%%%% identify missing days, and for years 2005-2007, 2010-2013, check if buoy data can be substituted! %%%%%%%%%%%%%%%%%%%%%%%%
@@ -174,14 +154,12 @@ if ismember(year2do,[2005:2007 2010:2013]) && buoy_flag==1; %meaning, yes - you'
         sw_rad=buoy_data(:,6);
     end
           
-    %% splice in nantucket buoy data:
+    % splice in nantucket buoy data:
     % go through each day and see when data is available - then splice together:
-    missing_days=setxor(find_yearday(unqday(~isnan(dawnhr))),1:366);
+    missing_days=find(~isnan(lighttime_gaps));
     buoy_added=[];
+    buoy_days=nan(length(days),1);
     mvco_to_remove=[];
-    duskhr2=[];
-    dawnhr2=[];
-    unqday2=[];
     
     for q=1:length(missing_days) %check if buoy data has them!
         tempday=missing_days(q)+datenum(['1-0-' num2str(year2do)]);     
@@ -199,16 +177,16 @@ if ismember(year2do,[2005:2007 2010:2013]) && buoy_flag==1; %meaning, yes - you'
             tempduskhr=buoy_data(qq(ind2(end)),4)+1-1; %next hour after end of light plus offset
             if abs(tempduskhr-dusk_median) > 1, tempduskhr = dusk_median(missing_days(q)); end
             
-            dawnhr2 = [dawnhr2; tempdawnhr];  
-            duskhr2 = [duskhr2; tempduskhr];  
-            unqday2 = [unqday2; tempday];
+            dawnhr(missing_days(q)) = tempdawnhr;  
+            duskhr(missing_days(q)) = tempduskhr;  
+            buoy_days(missing_days(q)) = 1;
             
             %data to remove from MVCO track:
             mm=find(date_met >= buoy_date(qq(1)) & date_met <= buoy_date(qq(end)));
             mvco_to_remove=[mvco_to_remove; mm];
         end   
     end
-    
+   
     % now add in and remove data - yikes!  
     [ind]=setdiff(1:length(date_met),mvco_to_remove); %mvco data to keep, that won't be replaced
     date_met_temp=[date_met(ind); buoy_added(:,1)];
@@ -217,36 +195,29 @@ if ismember(year2do,[2005:2007 2010:2013]) && buoy_flag==1; %meaning, yes - you'
     date_met=date_met_temp(is);
     Solar=solar_temp(is);
     
-    unqtemp=[unqday; unqday2];
-    dawnhr_temp=[dawnhr; dawnhr2];
-    duskhr_temp=[duskhr; duskhr2];
-    [~,is2]=sort(unqtemp);
-    unqday=unqtemp(is2);
-    dawnhr=dawnhr_temp(is2);
-    duskhr=duskhr_temp(is2);
-    
-    yrdy=find_yearday(unqday);
 end
 
+dawn=[days dawnhr];
+ii=find(isnan(buoy_days));
+jj=find(~isnan(lighttime_gaps(ii)));
+dawn(ii(jj),2)=NaN; %not a good day
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%  check for nighttime noise  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 date_met_local=date_met-5/24; %for easier handling
 
-for j=1:length(unqday)
+for j=1:length(days)
     
-    day=unqday(j);
+    day=days(j);
     ii=find(date_met_local >= day & date_met_local <= day+1);
     
-    %find any light levels during nightime hours:
-    nn=find(date_met_local(ii) <= day+dawn_median(yrdy(j))/24-5/24 | date_met_local(ii) >= day+dusk_median(yrdy(j))/24-5/24); %min normal dawn and max normal dusk
-    
-    %expected night:
+    %find any light levels during expected nightime hours:
+    nn=find(date_met_local(ii) <= day+dawn_median(j)/24-5/24 | date_met_local(ii) >= day+dusk_median(j)/24-5/24); %min normal dawn and max normal dusk
+
     if ~isempty(nn)
         if any(Solar(ii(nn)) > 20)
             disp(['Found "light" readings during dark period for day: ' num2str(day) ': ' datestr(day) ' correcting...'])
-            Solar(ii(nn)) = 0;
-            
+            Solar(ii(nn)) = 0;            
             %             plot(date_met_local(ii(nn)),Solar(ii(nn)),'.-')
             %             xlim([day-3 day+3])
             %             datetick('x','mm dd','keeplimits')
@@ -256,19 +227,16 @@ for j=1:length(unqday)
     end
 end
 
-%% %%%%%% a bit more clean up.... %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%skip last local time hours of 12-31 for previous year:
-dawn = [unqday dawnhr];
-[yy,~,~,~,~,~]=datevec(dawn(:,1));
-jj=find(yy==year2do);
-dawn=dawn(jj,:); %occassionally Dec 31st of previous year is included!
-
+%negative noise, simply remove:
+jj=find(Solar < 0);
+disp(['replacing ' num2str(length(jj)) ' negative values with 0'])
+Solar(jj)=0;
 
 %% %%%%%%%%%%%%%%%%%%%%%%   AND PLOT!  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if solarplotflag
     clf
+    %colorblock expected nightime:
     for j=1:366
         day=datenum(['1-0-' num2str(year2do)])+j;
         %color in night:
@@ -277,32 +245,50 @@ if solarplotflag
     end
     
     %plot the data!
-    h1=plot(date_met,Solar,'.-','color',[0.0265 0.6137 0.8135]);
+    h1=plot(date_met,Solar,'-','color',[0.0265 0.6137 0.8135]);
     set(gca, 'layer', 'top')
-    if exist('buoy_added')
+    h2=plot(date_met0,Solar0,'.','color',[0 0.4 0.8]);
+    
+    if exist('buoy_added','var')
         hold on
-        h2=plot(buoy_added(:,1),buoy_added(:,2),'o','linewidth',2,'markersize',4,'color',[0 0 0.7]);
-        legend([h1(1); h2(1)],'MVCO data','Buoy data','location','NorthOutside')
-        title([num2str(year2do) ' Solar data: ' num2str(size(unqday2,1)) ' days added from buoy data'])
+        h3=plot(buoy_added(:,1),buoy_added(:,2),'o','linewidth',2,'markersize',4,'color',[0 0 0.7]);
+        legend([h1(1); h2(1); h3(1)],'Final data','MVCO data','Original buoy data','location','NorthOutside')
+        title([num2str(year2do) ' Solar data: ' num2str(length(find(~isnan(buoy_days)))) ' days added from buoy data'])
+    else
+        legend([h1(1); h2(1)],'Final data','MVCO data','location','NorthOutside')
+        title(num2str(year2do))
     end
     
     %add dawn lines:
     for i=1:length(dawn)
-        line([dawn(i,1)+dawn(i,2)/24 dawn(i,1)+dawn(i,2)/24],[0 1000],'linewidth',2,'color',[0.8 0.5 0]) %first matlab default color: [0 0.5 0.8]
+        if isnan(dawn(i,2))
+           plot(dawn(i,1)+(dawnhr(i)+12)/24,800,'x','linewidth',2,'color',[0 0 0]) %first matlab default color: [0 0.5 0.8]
+        else
+           line([dawn(i,1)+dawn(i,2)/24 dawn(i,1)+dawn(i,2)/24],[0 1000],'linewidth',2,'color',[0.8 0.5 0]) %first matlab default color: [0 0.5 0.8]
+        end
     end
+    
+    
 end
 
 xlim([datenum(['1-1-' num2str(year2do)]) datenum(['12-31-' num2str(year2do)])])
 ylim([-10 max(Solar)])
 datetick('x','keeplimits')
 
+
+
+
 %% %SAVE! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-if exist('buoy_added')
-    eval(['save ' solarsavepath 'solar' num2str(year2do) '.mat Solar date_met dawn buoy_added'])
+
+if exist('buoy_added','var')
+    eval(['save ' solarsavepath 'solar' num2str(year2do) '_w_buoy.mat Solar date_met dawn buoy_added'])
 else
     eval(['save ' solarsavepath 'solar' num2str(year2do) '.mat Solar date_met dawn'])
 end
+
+
+
 %% screen days, one by one:
 %  for count = 1:length(unqday),
 %     ind = find(floor(date_met) == unqday(count));
